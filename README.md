@@ -12,6 +12,8 @@ Follow the steps below to run the project locally:
 # Clone the repository
 git clone https://github.com/sirconfy/worksquare-frontend-task.git
 cd worksquare-frontend-task
+git checkout chidi_branch
+
 
 # Install dependencies
 npm install
