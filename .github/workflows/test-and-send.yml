@@ -1,14 +1,15 @@
 name: Run Tests & Send Results
 
 on:
-  push:
-    branches:
-      - main  
   pull_request:
+    branches:
+      - main
 
 jobs:
-  build:
+  frontend-check:
+    if: contains(github.head_ref, 'frontend')  
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -21,16 +22,54 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests
-        run: npm test -- --json --outputFile=test-results.json || true
+      - name: Run lint
+        run: npm run lint || true
 
-      - name: Send results to Make.com
+      - name: Run tests
+        run: npm test || true
+
+      - name: Build project
+        run: npm run build || true
+
+      - name: Score Frontend Project
+        id: scoring
         run: |
+          score=0
+
+          # README present
+          [ -f "README.md" ] && score=$((score+15))
+
+          # Framework check
+          grep -q -E "react|vue|angular" package.json && score=$((score+15))
+
+          # Lint passes
+          npm run lint --silent && score=$((score+15))
+
+          # Tests pass
+          npm test --silent && score=$((score+10))
+
+          # Build passes
+          npm run build --silent && score=$((score+10))
+
+          # Deployment link in README
+          grep -q "https://" README.md && score=$((score+10))
+
+          # Architecture section in README
+          grep -q "Architecture" README.md && score=$((score+10))
+
+          # No console logs or TODOs
+          ! grep -r "console.log" src/ && ! grep -r "TODO" src/ && score=$((score+15))
+
+          echo "score=$score" >> $GITHUB_ENV
+
+      - name: Send result to Make.com
+        run: |
+          if [ $score -ge 70 ]; then
+            status="pass"
+          else
+            status="fail"
+          fi
+
           curl -X POST -H "Content-Type: application/json" \
-          -d "{
-            \"candidate\": \"${{ github.actor }}\",
-            \"repo\": \"${{ github.repository }}\",
-            \"score\": 85,
-            \"status\": \"pass\"
-          }" \
+          -d "{\"status\":\"$status\",\"score\":$score,\"track\":\"frontend\",\"pr\":\"${{ github.event.pull_request.html_url }}\"}" \
           https://hook.eu2.make.com/thp4vs3skwbnbk65aiuwcdrv54zada7f
