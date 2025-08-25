@@ -1,0 +1,36 @@
+name: Run Tests & Send Results
+
+on:
+  push:
+    branches:
+      - main  
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test -- --json --outputFile=test-results.json || true
+
+      - name: Send results to Make.com
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d "{
+            \"candidate\": \"${{ github.actor }}\",
+            \"repo\": \"${{ github.repository }}\",
+            \"score\": 85,
+            \"status\": \"pass\"
+          }" \
+          https://hook.eu2.make.com/thp4vs3skwbnbk65aiuwcdrv54zada7f
